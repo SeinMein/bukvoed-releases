@@ -1,0 +1,14 @@
+lexicon.txt is a filtered list of Russian dictionary headwords derived from
+OpenCorpora data through pymorphy3-dicts-ru 2.4.417150.4580142.
+Source: https://opencorpora.org/ and https://github.com/no-plagiarism/pymorphy3-dicts
+
+Dictionary data: Creative Commons Attribution-ShareAlike 3.0 Unported.
+License: https://creativecommons.org/licenses/by-sa/3.0/
+Legal text: https://creativecommons.org/licenses/by-sa/3.0/legalcode
+Attribution: OpenCorpora contributors; pymorphy3 dictionary maintainers.
+Changes: retain normal-form entries written only with Russian letters,
+exclude proper-name categories, normalize ё to е, remove duplicates, sort.
+The resulting lexicon.txt remains licensed under CC BY-SA 3.0.
+
+This license applies to lexicon.txt. For the expanded words.json word bank,
+see WORD-BANK-LICENSE.txt.

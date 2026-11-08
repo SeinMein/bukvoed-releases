@@ -1,0 +1,35 @@
+Expanded word-bank data (words.json and added_words.json): CC BY-SA 4.0.
+https://creativecommons.org/licenses/by-sa/4.0/
+https://creativecommons.org/licenses/by-sa/4.0/legalcode
+
+The original hand-written word bank is retained. Added entries were selected
+using wordfreq 3.1.1 frequency data by Robyn Speer and normalized with Russian
+OpenCorpora dictionary data distributed as pymorphy3-dicts-ru
+2.4.417150.4580142. Selection excludes existing words, abbreviations,
+several nonstandard tags, explicit vocabulary, and obvious word fragments.
+Frequencies of noun inflections were summed by lemma; at most 150 entries per initial letter in the first stage and at most
+500 additional entries in the latest stage were retained above the same cutoff.
+
+Sources and attribution:
+OpenRussian contributors: https://github.com/Badestrand/russian-dictionary
+Selected nouns from the OpenRussian nouns.csv export were filtered by
+spelling, frequency and morphological tags, then merged into words.json.
+OpenRussian data is licensed under CC BY-SA 4.0.
+wordfreq: https://github.com/rspeer/wordfreq — data under CC BY-SA 4.0;
+OpenCorpora contributors: https://opencorpora.org/ — data under CC BY-SA 3.0;
+pymorphy3 dictionary maintainers: https://github.com/no-plagiarism/pymorphy3-dicts
+The adapted additions are distributed under CC BY-SA 4.0.
+The wordfreq Python library itself is Apache-2.0 and is not a runtime
+dependency of this bot. The morphological library is not a runtime dependency.
+
+Frequency-data sources credited by wordfreq include Google Books Ngrams
+(https://books.google.com/ngrams), Leeds Internet Corpus
+(https://corpus.leeds.ac.uk/list.html), Wikipedia (https://www.wikipedia.org/),
+ParaCrawl (https://paracrawl.eu/), OPUS OpenSubtitles 2018
+(https://opus.nlpl.eu/OpenSubtitles.php, https://www.opensubtitles.org/),
+SUBTLEX lists by Marc Brysbaert and colleagues
+(https://crr.ugent.be/programs-data/subtitle-frequencies), and additional
+sources documented in the bundled wordfreq-source-notice.txt.
+
+Frequency is a selection aid, not a guarantee that every selected proper name
+is universally familiar or accepted by the game's dictionary.
