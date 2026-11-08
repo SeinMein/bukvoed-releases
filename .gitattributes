@@ -1,0 +1,3 @@
+# Distribution files must retain the bytes covered by manifest.json.
+/app/** -text
+/Bukvoed.exe -text
