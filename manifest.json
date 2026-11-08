@@ -1,5 +1,5 @@
 {
-  "version": "2026.11.08.3",
+  "version": "2026.11.08.4",
   "files": {
     "_internal/_asyncio.pyd": "0e53f227048492830bf0328bbc3bebc336268821c88c1da1ba1711855b51cd01",
     "_internal/_bz2.pyd": "0adf0680f54eec173401230df0aa561aa188c7f4d40e5f2ba790d333c6057d8d",
@@ -981,7 +981,7 @@
     "_internal/api-ms-win-crt-time-l1-1-0.dll": "886e57c4a6adb299b38f02945369f590a67da4e79a798359fc60aaa067212d7c",
     "_internal/api-ms-win-crt-utility-l1-1-0.dll": "5f8f26b216ade615b67a41f6fbbb910972fc6153315a65bb8f09912be50215b1",
     "_internal/bank_changes.json": "a8a31df33ec1812c6b6e62c86caed8ab12811343a401ccffd21d7c17f8263001",
-    "_internal/base_library.zip": "ccaaeb5b752620e98d3647cbcc8d4644bc33494f3282733f3090616b407f76a7",
+    "_internal/base_library.zip": "1a254f5470b408dee25d725f406634f49d678d94f618e261fd18247283811cff",
     "_internal/cv2/__init__.py": "674817e87409bc589608ef9f4dd4c1a49f600b5e85ca8b106b3b0a9eab5c46cc",
     "_internal/cv2/config-3.py": "de28c7b5213cca148f09469916584611b3d66c1c8c432880259d6a3a92380213",
     "_internal/cv2/config.py": "6c6367abce55995ae4a8d3c199420ec53afab287cb17dfc2f430378af75dd301",
@@ -1073,6 +1073,6 @@
     "_internal/wordfreq-source-notice.txt": "bc22df188ce6425bc32db7d770c9972d1753d90ce8421533230a9d077e12d933",
     "_internal/words.json": "5ed100665575bd3860bbce4cc1cb55fa6b67ebccb1d6ba7076414507206e20a8",
     "_internal/zlib1.dll": "1dd27f0411ebb31bd148a61589cee254410915f1e6c37aa3ffa52fac71a5426c",
-    "BukvoedApp.exe": "7fca694dd5c42e08480fe7b4ddb9cd9d2b9eee21f6604332d7dbd4458da6a223"
+    "BukvoedApp.exe": "d1971ff05cb7579e20b7645f0c38fc022d1a72f17689b8c6c07da5d35fb02385"
   }
 }
