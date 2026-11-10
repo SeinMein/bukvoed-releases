@@ -1,7 +1,8 @@
 """Reproducibly patch the shipped application without unavailable original sources.
 
 Run with Python 3.13: release_patch.py BASE_EXE OUTPUT_EXE
-Only Reader.lobby_visible, the player retry guard, and version labels change.
+Updates lobby detection, the player retry guard and version labels; restores
+the original chair movement and direction detector from pinned Git history.
 The bootloader and all other bundled archive entries are preserved.
 """
 import dis
@@ -9,6 +10,7 @@ import hashlib
 import marshal
 from pathlib import Path
 import struct
+import subprocess
 import sys
 import types
 import zlib
@@ -17,12 +19,17 @@ COOKIE = '!8sIIII64s'
 ENTRY = '!IIIIBc'
 MAGIC = b'MEI\014\013\012\013\016'
 BASE_VERSION = '2026.11.08.14'
-VERSION = '2026.11.10.1'
+VERSION = '2026.11.10.2'
 BASE_SHA256 = 'b953dc26d91f12865521c014ef911f1e6bcc660fab19a8fe794cd99ce8d09929'
+MOVEMENT_COMMIT = '0cdeacde42f240054bed0fa1fc28badf4a69ace9'
+MOVEMENT_SHA256 = '64f26320b85ea5ef6381a8b114b345815c4478ca4d3057cb64c4988b3be8e047'
 
 
 def read_archive(path):
-    data = Path(path).read_bytes()
+    return read_archive_bytes(Path(path).read_bytes())
+
+
+def read_archive_bytes(data):
     pos = data.rfind(MAGIC)
     magic, length, toc_offset, toc_length, pyver, library = struct.unpack_from(COOKIE, data, pos)
     assert pos + struct.calcsize(COOKIE) == len(data), 'Unexpected executable trailer'
@@ -41,18 +48,43 @@ def read_archive(path):
     return data[:start], entries, pyver, library
 
 
+def movement_code():
+    repository = Path(__file__).resolve().parent.parent
+    exe = subprocess.check_output(['git', '-C', str(repository), 'show',
+                                   f'{MOVEMENT_COMMIT}:app/BukvoedApp.exe'])
+    assert hashlib.sha256(exe).hexdigest() == MOVEMENT_SHA256
+    entry = next(e for e in read_archive_bytes(exe)[1] if e[0] == 'bot')
+    return marshal.loads(zlib.decompress(entry[1]) if entry[3] else entry[1])
+
+
 def patch_code(code):
     source = Path(__file__).with_name('restart_fix.py')
     replacement = compile(source.read_text(encoding='utf-8'), 'maintenance/restart_fix.py', 'exec')
     lobby = next(c for c in replacement.co_consts if isinstance(c, types.CodeType) and c.co_name == 'lobby_visible')
+    restart = next(c for c in replacement.co_consts if isinstance(c, types.CodeType) and c.co_name == 'restart_at_chair')
+    adapter = next(c for c in replacement.co_consts if isinstance(c, types.CodeType) and c.co_name == 'attempt_chair_restart')
+    previous = movement_code()
+    legacy = next(c for c in previous.co_consts if isinstance(c, types.CodeType) and c.co_name == 'restart_at_chair')
+    grass = next(c for c in previous.co_consts if isinstance(c, types.CodeType) and c.co_name == 'chair_grass_direction')
+    adapter = adapter.replace(co_consts=tuple(legacy if isinstance(c, types.CodeType) and c.co_name == 'legacy'
+                                             else c for c in adapter.co_consts))
     changes = []
 
     def walk(item):
         if item.co_qualname == 'Reader.lobby_visible':
             changes.append('lobby detector')
             return lobby.replace(co_qualname='Reader.lobby_visible')
+        if item.co_qualname == 'restart_at_chair':
+            changes.append('chair restart adapter')
+            return restart
+        if item.co_qualname == 'attempt_chair_restart':
+            changes.append('original chair movement')
+            return adapter
+        if item.co_qualname == 'chair_grass_direction':
+            changes.append('original direction detector')
+            return grass
         constants = tuple(walk(c) if isinstance(c, types.CodeType)
-                          else c.replace('v12', 'v15') if isinstance(c, str) else c
+                          else c.replace('v12', 'v16') if isinstance(c, str) else c
                           for c in item.co_consts)
         if item.co_qualname == 'App.run.<locals>.loop':
             instructions = list(dis.get_instructions(item))
@@ -71,7 +103,8 @@ def patch_code(code):
         return item.replace(co_consts=constants)
 
     result = walk(code)
-    assert sorted(changes) == ['continuous player retries', 'lobby detector'], changes
+    assert sorted(changes) == ['chair restart adapter', 'continuous player retries',
+                               'lobby detector', 'original chair movement', 'original direction detector'], changes
     return result
 
 

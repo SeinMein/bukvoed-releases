@@ -35,3 +35,21 @@ async def lobby_visible(self, image):
     footer = await self.text(crop_relative(image, (0.3, 0.82, 0.66, 0.99), 2), self.ru)
     labels = ''.join(c for c in footer.casefold() if c.isalpha())
     return any(label in labels for label in ('инвентар', 'профиль', 'лавка'))
+
+
+async def restart_at_chair(reader, capture, window, stopped, attempt, diagnostics, blocked):
+    """Use the earlier jump/walk/return routine without reversing its camera."""
+    return await attempt_chair_restart(reader, capture, window, stopped, attempt,
+                                       diagnostics, blocked, [])
+
+
+async def attempt_chair_restart(reader, capture, window, stopped, attempt,
+                               diagnostics, blocked, camera_changes):
+    # release_patch.py installs the ORIGINAL routine from Git commit 0cdeacd.
+    # Its input, timings and camera search are retained byte for byte.
+    async def legacy(reader, capture, window, stopped, attempt, diagnostics,
+                     steps, replay, reorient):
+        raise RuntimeError('The release builder must install the pinned legacy routine')
+
+    return await legacy(reader, capture, window, stopped, attempt, diagnostics,
+                        [], None, attempt > 1)
