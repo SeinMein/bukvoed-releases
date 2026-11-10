@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+/app/logs/
+/app/words.json
+/app/bank_changes.json
+/app/excluded_names.json
