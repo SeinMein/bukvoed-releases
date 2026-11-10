@@ -1,5 +1,5 @@
 {
-  "version": "2026.11.10.2",
+  "version": "2026.11.10.3",
   "files": {
     "_internal/_asyncio.pyd": "0e53f227048492830bf0328bbc3bebc336268821c88c1da1ba1711855b51cd01",
     "_internal/_bz2.pyd": "0adf0680f54eec173401230df0aa561aa188c7f4d40e5f2ba790d333c6057d8d",
@@ -1073,6 +1073,6 @@
     "_internal/wordfreq-source-notice.txt": "bc22df188ce6425bc32db7d770c9972d1753d90ce8421533230a9d077e12d933",
     "_internal/words.json": "5ed100665575bd3860bbce4cc1cb55fa6b67ebccb1d6ba7076414507206e20a8",
     "_internal/zlib1.dll": "1dd27f0411ebb31bd148a61589cee254410915f1e6c37aa3ffa52fac71a5426c",
-    "BukvoedApp.exe": "ae75be4df6e3206dcc716c546d3c7acb3f38fbc450f1bef8629f0510ee64ca6f"
+    "BukvoedApp.exe": "76a3f5c1253b10dc02841aaa74dabde7cacc2d8758f950d92d179a5367559b62"
   }
 }

@@ -19,7 +19,7 @@ COOKIE = '!8sIIII64s'
 ENTRY = '!IIIIBc'
 MAGIC = b'MEI\014\013\012\013\016'
 BASE_VERSION = '2026.11.08.14'
-VERSION = '2026.11.10.2'
+VERSION = '2026.11.10.3'
 BASE_SHA256 = 'b953dc26d91f12865521c014ef911f1e6bcc660fab19a8fe794cd99ce8d09929'
 MOVEMENT_COMMIT = '0cdeacde42f240054bed0fa1fc28badf4a69ace9'
 MOVEMENT_SHA256 = '64f26320b85ea5ef6381a8b114b345815c4478ca4d3057cb64c4988b3be8e047'
@@ -63,6 +63,10 @@ def patch_code(code):
     lobby = next(c for c in replacement.co_consts if isinstance(c, types.CodeType) and c.co_name == 'lobby_visible')
     restart = next(c for c in replacement.co_consts if isinstance(c, types.CodeType) and c.co_name == 'restart_at_chair')
     adapter = next(c for c in replacement.co_consts if isinstance(c, types.CodeType) and c.co_name == 'attempt_chair_restart')
+    sender = next(c for c in replacement.co_consts if isinstance(c, types.CodeType) and c.co_name == 'press')
+    original_sender = next(c for c in code.co_consts if isinstance(c, types.CodeType) and c.co_name == 'press')
+    sender = sender.replace(co_consts=tuple(original_sender if isinstance(c, types.CodeType) and c.co_name == 'original'
+                                           else c for c in sender.co_consts))
     previous = movement_code()
     legacy = next(c for c in previous.co_consts if isinstance(c, types.CodeType) and c.co_name == 'restart_at_chair')
     grass = next(c for c in previous.co_consts if isinstance(c, types.CodeType) and c.co_name == 'chair_grass_direction')
@@ -71,6 +75,9 @@ def patch_code(code):
     changes = []
 
     def walk(item):
+        if item.co_qualname == 'press':
+            changes.append('movement virtual keys')
+            return sender
         if item.co_qualname == 'Reader.lobby_visible':
             changes.append('lobby detector')
             return lobby.replace(co_qualname='Reader.lobby_visible')
@@ -84,7 +91,7 @@ def patch_code(code):
             changes.append('original direction detector')
             return grass
         constants = tuple(walk(c) if isinstance(c, types.CodeType)
-                          else c.replace('v12', 'v16') if isinstance(c, str) else c
+                          else c.replace('v12', 'v17') if isinstance(c, str) else c
                           for c in item.co_consts)
         if item.co_qualname == 'App.run.<locals>.loop':
             instructions = list(dis.get_instructions(item))
@@ -97,14 +104,24 @@ def patch_code(code):
             assert index < 256 and guards[0].arg < 256
             bytecode = bytearray(item.co_code)
             bytecode[guards[0].offset + 1] = index
+            # A fresh Start in the lobby must not wait for a prior own turn.
+            # Zero-distance jump retains the original stack/cache layout.
+            startup = [i for i in instructions if i.opname == 'POP_JUMP_IF_NONE'
+                       and i.positions.lineno == 1544]
+            assert len(startup) == 1
+            offset = startup[0].offset
+            assert bytecode[offset - 2] == dis.opmap['EXTENDED_ARG']
+            bytecode[offset - 1] = bytecode[offset + 1] = 0
             constants += (float('inf'),)
             item = item.replace(co_code=bytes(bytecode))
             changes.append('continuous player retries')
+            changes.append('start from lobby')
         return item.replace(co_consts=constants)
 
     result = walk(code)
     assert sorted(changes) == ['chair restart adapter', 'continuous player retries',
-                               'lobby detector', 'original chair movement', 'original direction detector'], changes
+                               'lobby detector', 'movement virtual keys', 'original chair movement',
+                               'original direction detector', 'start from lobby'], changes
     return result
 
 

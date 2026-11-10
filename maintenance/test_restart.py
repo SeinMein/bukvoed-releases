@@ -73,6 +73,9 @@ async def run(base_path, fixed_path, frame_dir=None):
                for i in dis.get_instructions(fixed_loop))
     expected = bytearray(original_loop.co_code)
     expected[old_guard[0].offset + 1] = new_guard.arg
+    startup = next(i for i in dis.get_instructions(original_loop)
+                   if i.opname == 'POP_JUMP_IF_NONE' and i.positions.lineno == 1544)
+    expected[startup.offset - 1] = expected[startup.offset + 1] = 0
     assert bytes(expected) == fixed_loop.co_code
     assert fixed_loop.co_exceptiontable == original_loop.co_exceptiontable
 

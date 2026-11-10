@@ -49,7 +49,7 @@ async def run(base_path, fixed_path):
     # implementation, not a new approximation of the former route.
     assert legacy == find(previous, 'restart_at_chair')
     assert find(fixed, 'chair_grass_direction') == find(previous, 'chair_grass_direction')
-    for name in ('press', 'move_chair_camera', 'chair_view', 'send_word'):
+    for name in ('move_chair_camera', 'chair_view', 'send_word'):
         assert find(base, name) == find(fixed, name), name
 
     async def scenario(values, answers=(), directions=((31, 17),), attempt=1,
@@ -71,10 +71,10 @@ async def run(base_path, fixed_path):
                    chair_grass_direction=lambda image: next(direction_iter, (31, 17)))
         env['chair_view'] = FunctionType(find(base, 'chair_view'), env)
         env['attempt_chair_restart'] = FunctionType(adapter, env)
-        restart = FunctionType(find(fixed, 'restart_at_chair'), env)
+        restart = FunctionType(adapter, env)
         diagnostics = SimpleNamespace(event=events.append, folder=Path('.'))
         outcome = await restart(Reader(answers), Capture(values), window, stopped,
-                                attempt, diagnostics, set())
+                                attempt, diagnostics, set(), [])
         return outcome, keys, camera
 
     result, keys, camera = await scenario([0, 40, 0])
@@ -104,7 +104,7 @@ async def run(base_path, fixed_path):
     assert result == 'interrupted'
     assert [k for k, _ in keys] == [57], keys
     print('PASS: original Git movement/direction restored byte-for-byte; '
-          'keyboard/camera input code unchanged; jump/walk/back, transition, '
+          'camera input code unchanged; jump/walk/back, transition, '
           'camera search without reverse, no motion and Stop scenarios')
 
 
