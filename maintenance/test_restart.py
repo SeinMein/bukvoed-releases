@@ -106,5 +106,3 @@ async def run(base_path, fixed_path, frame_dir=None):
 
 if __name__ == '__main__':
     asyncio.run(run(*sys.argv[1:]))
-
-
