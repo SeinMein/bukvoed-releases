@@ -114,6 +114,13 @@ async def attempt_chair_restart(reader,capture,window,stopped,attempt,diagnostic
 
     initial=snapshot()
     if initial is None or not await reader.lobby_visible(initial):return 'interrupted'
+    if not move_chair_camera(window,stopped,0,8,0):return 'interrupted'
+    camera_changes.append((0,8,0))
+    diagnostics.event('Кресло: приподнял ракурс перед проверкой травы.')
+    if stopped.wait(.20):return 'interrupted'
+    initial=snapshot()
+    if initial is None:return 'interrupted'
+    if not await reader.lobby_visible(initial):return 'transition'
     direction=chair_grass_direction(initial,blocked) or chair_grass_direction(initial)
 
     if direction is None:

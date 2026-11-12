@@ -87,19 +87,21 @@ async def run(base_path, fixed_path, recording=None):
         assert press._chair_input is False
         return outcome, keys, camera
 
-    result, keys, camera = await scenario([0, 0, 40, 0])
-    assert result == 'returned' and keys == [31, 17] and not camera
-
-    result, keys, camera = await scenario([0, 0, 40], (True, True, False))
-    assert result == 'transition' and keys == [31]
-
     result, keys, camera = await scenario([0, 0, 0, 40, 0])
+    assert result == 'returned' and keys == [31, 17]
+    assert camera == [(0, 8, 0), (0, -8, 0)]
+
+    result, keys, camera = await scenario([0, 0, 0, 40], (True, True, True, False))
+    assert result == 'transition' and keys == [31]
+    assert camera == [(0, 8, 0)]
+
+    result, keys, camera = await scenario([0, 0, 0, 0, 40, 0])
     assert result == 'returned' and keys == [31, 57, 31, 17]
 
     result, keys, camera = await scenario([0], directions=(None,) * 20)
     assert result == 'grass_unconfirmed' and not keys
-    assert camera == [(6, 0, 0), (-6, 0, 0), (-6, 0, 0),
-                      (6, 0, 0), (0, -6, 0), (0, 6, 0)]
+    assert camera == [(0, 8, 0), (6, 0, 0), (-6, 0, 0), (-6, 0, 0),
+                      (6, 0, 0), (0, -6, 0), (0, 6, 0), (0, -8, 0)]
 
     result, keys, camera = await scenario([0], stop_after_key=True)
     assert result == 'interrupted' and keys == [31]

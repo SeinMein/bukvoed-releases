@@ -19,7 +19,7 @@ COOKIE = '!8sIIII64s'
 ENTRY = '!IIIIBc'
 MAGIC = b'MEI\014\013\012\013\016'
 BASE_VERSION = '2026.11.08.14'
-VERSION = '2026.11.12.1'
+VERSION = '2026.11.12.2'
 BASE_SHA256 = 'b953dc26d91f12865521c014ef911f1e6bcc660fab19a8fe794cd99ce8d09929'
 MOVEMENT_COMMIT = '0cdeacde42f240054bed0fa1fc28badf4a69ace9'
 MOVEMENT_SHA256 = '64f26320b85ea5ef6381a8b114b345815c4478ca4d3057cb64c4988b3be8e047'
@@ -81,7 +81,7 @@ def patch_code(code):
             changes.append(item.co_qualname)
             return chair_functions[item.co_qualname]
         constants = tuple(walk(c) if isinstance(c, types.CodeType)
-                          else c.replace('v12', 'v18') if isinstance(c, str) else c
+                          else c.replace('v12', 'v19') if isinstance(c, str) else c
                           for c in item.co_consts)
         if item.co_qualname == 'App.run.<locals>.loop':
             instructions = list(dis.get_instructions(item))
