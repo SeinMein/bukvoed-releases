@@ -90,7 +90,7 @@ def repeat_loss_enter(reader,capture,window,stopped,turbo=False):
         if state['thread'].is_alive():
             return pending
 
-    state={'count':0,'reported':0}
+    state={'count':0,'reported':0,'cancel':threading.Event()}
     reader.loss_enter_sender=state
     hwnd,region=window
 
@@ -101,7 +101,7 @@ def repeat_loss_enter(reader,capture,window,stopped,turbo=False):
             # MSS capture objects are local to the thread that uses them.
             with mss.mss() as stream_capture:
                 next_check=0.
-                while not stopped.is_set():
+                while not stopped.is_set() and not state['cancel'].is_set():
                     if not reader.loss_enter_allowed():
                         reason='режим или партия изменились'
                         break
@@ -122,9 +122,21 @@ def repeat_loss_enter(reader,capture,window,stopped,turbo=False):
                         if ((r>155)&(r>g+60)&(r>b+45)).mean()<.55:
                             break
                         next_check=time.monotonic()+.05
-                    press(0x1c,0,stopped,hwnd)
-                    state['count']+=1
-                    time.sleep(.008)
+                    with reader.loss_input_lock:
+                        if (stopped.is_set() or state['cancel'].is_set()
+                                or not reader.loss_enter_allowed() or not can_type(hwnd,stopped)):
+                            break
+                        down=INPUT(type=1,ki=KEYBDINPUT(0x0d,0x1c,0,0,0))
+                        up=INPUT(type=1,ki=KEYBDINPUT(0x0d,0x1c,2,0,0))
+                        if user32.SendInput(1,C.byref(down),C.sizeof(INPUT))!=1:
+                            raise RuntimeError('Windows отклонила нажатие Enter')
+                        try:
+                            time.sleep(.018)
+                        finally:
+                            if user32.SendInput(1,C.byref(up),C.sizeof(INPUT))!=1:
+                                raise RuntimeError('Windows не подтвердила отпускание Enter')
+                        state['count']+=1
+                    time.sleep(.006)
         except (OSError,RuntimeError) as exc:
             reason=str(exc)
         finally:
@@ -198,6 +210,13 @@ class App:
         async def loop():
             nonlocal ledger
             reader, gate = Reader(), TurnGate()
+            reader.loss_input_lock=threading.Lock()
+
+            def reset_loss_sender():
+                sender=getattr(reader,'loss_enter_sender',None)
+                if sender is not None:
+                    sender['cancel'].set()
+                reader.loss_enter_sender=None
             timer=TurnTimer(BASE/'timer_digits.npz')
             pending=None
             cleanup_letter=None
@@ -260,6 +279,7 @@ class App:
                     focus_status=None
                     next_focus_attempt=0.
                     if hwnd != last_hwnd:
+                        reset_loss_sender()
                         gate.previous, gate.count = None, 0
                         retry_letter=None
                         cleanup_letter=None
@@ -288,6 +308,11 @@ class App:
                     now=time.monotonic()
                     own_turn=reader.last['turn_icon']['present']
                     if (match_finished and (choices or (own_turn and letter))) or (choices and saw_own_turn):
+                        reset_loss_sender()
+                        losing_letter=None
+                        loss_wrong=''
+                        loss_enters=loss_errors=0
+                        loss_progress=0.
                         chair_blocked.clear()
                         ledger=new_ledger()
                         tracker.begin_match(ledger)
@@ -315,6 +340,7 @@ class App:
                     elif not match_finished:
                         self.match_clock=None
                     if choices:
+                        reset_loss_sender()
                         lobby_frames=0
                         pending=cleanup_letter=retry_letter=losing_letter=None
                         loss_wrong=''
@@ -361,6 +387,7 @@ class App:
                         lobby_frames=lobby_frames+1 if in_lobby else 0
                         if lobby_frames>=2:
                             if not match_finished:
+                                reset_loss_sender()
                                 self.diagnostics.event('Конец партии: лобби подтверждено. Перезапуск: '+self.restart_mode)
                                 if training_match:
                                     self.match_clock=(match_started,now)
@@ -424,20 +451,31 @@ class App:
                                 if first_attempt:
                                     loss_enters=0
                                     loss_wrong=''
-                                wrong=random.choice([c for c in 'бгджзкпфхцчшщ'
-                                                     if c not in (letter,loss_wrong)])
-                                if send_word(letter+wrong,hwnd,delay,self.stopped,mode,submit=False,fast=True,turbo=loss_turbo):
+                                wrong='цщ'
+                                with reader.loss_input_lock:
+                                    sent=send_word(letter+wrong,hwnd,delay,self.stopped,mode,
+                                                   submit=False,fast=True,turbo=loss_turbo)
+                                    if sent:
+                                        confirmed=await confirm_input(reader,capture,hwnd,self.stopped,letter+wrong)
+                                    if not sent or not confirmed:
+                                        reset_loss_sender()
+                                        losing_letter=None
+                                        cleanup_letter=letter
+                                        cleanup_urgent=True
+                                        sent=False
+                                if sent:
                                     losing_letter=letter
                                     loss_wrong=wrong
                                     loss_progress=now
                                     loss_errors=errors
-                                    self.diagnostics.event('Проигрыш: введено '+letter+wrong+'. Повторяю Enter.')
+                                    self.diagnostics.event('Проигрыш: введено '+letter+wrong+
+                                                           f'; поле подтверждено={confirmed}. Повторяю Enter.')
                             elif losing_letter and errors!=loss_errors:
                                 loss_errors=errors
                                 loss_progress=now
                             if losing_letter:
                                 loss_enters+=repeat_loss_enter(reader,capture,window,self.stopped,turbo=loss_turbo)
-                                if (not letter and len(row)==2 and row_quality(row)['complete']
+                                if (not letter and len(row)==1+len(loss_wrong) and row_quality(row)['complete']
                                         and now-loss_progress>=.35 and can_type(hwnd,self.stopped)
                                         and game_window()==window):
                                     # Backspace only on the original two-card field,
@@ -446,9 +484,10 @@ class App:
                                     fresh=Image.frombytes('RGB',shot.size,shot.rgb)
                                     await reader.read(fresh)
                                     fresh_row=reader.last['card_row']
-                                    if (reader.last['turn_icon']['present'] and len(fresh_row)==2
+                                    if (reader.last['turn_icon']['present'] and len(fresh_row)==1+len(loss_wrong)
                                             and row_quality(fresh_row)['complete']):
-                                        clear_suffix(1,hwnd,delay,self.stopped,fast=True,turbo=loss_turbo)
+                                        with reader.loss_input_lock:
+                                            clear_suffix(len(loss_wrong),hwnd,delay,self.stopped,fast=True,turbo=loss_turbo)
                                         loss_progress=now
                         self.stopped.wait(.015 if loss_turbo else .035)
                         continue

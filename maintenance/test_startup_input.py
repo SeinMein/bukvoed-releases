@@ -1,5 +1,6 @@
 """Execute the packaged worker and input sender without real OS input."""
 import asyncio
+import threading
 from types import SimpleNamespace, FunctionType, CodeType
 import sys
 from PIL import Image
@@ -47,7 +48,7 @@ async def startup(code):
                           extra_mode='off', notify=lambda text: None)
     cells = dict(bank=[], delay=0, learning=None, ledger=SimpleNamespace(), mode='',
                  new_ledger=lambda: None, nickname='', self=app, tracker=None)
-    env = dict(__builtins__=__builtins__, Reader=Reader, TurnGate=lambda: SimpleNamespace(),
+    env = dict(__builtins__=__builtins__, threading=threading, Reader=Reader, TurnGate=lambda: SimpleNamespace(),
                TurnTimer=lambda p: None, BASE='', mss=SimpleNamespace(mss=Capture),
                time=SimpleNamespace(monotonic=lambda: 10.0), Image=Image,
                game_window=lambda: (123, {}), PACE_MODES=('fast', 'slow', 'turbo'),

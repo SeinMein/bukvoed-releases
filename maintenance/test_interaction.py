@@ -125,27 +125,55 @@ async def run(executable, source_directory, own_recording=None, opponent_recordi
                 return bot.np.full((30, 30, 4), color, dtype='uint8')
 
         current = dict(env)
+        def key_event(count, pointer, size):
+            key = C.cast(pointer, C.POINTER(bot.INPUT)).contents.ki
+            assert key.wVk == 0x0d and key.wScan == 0x1c
+            pressed.append((key.dwFlags, time.monotonic()))
+            return 1
         current.update(mss=NS(mss=Capture), game_window=lambda:window,
                        can_type=lambda *a: focused[0] and not stop.is_set(),
-                       press=lambda *a:pressed.append(time.monotonic()))
+                       user32=NS(SendInput=key_event))
         repeat = FunctionType(find(code, 'repeat_loss_enter'), current, argdefs=(False,))
-        receiver = NS(loss_enter_allowed=lambda:allowed[0], loss_enter_notify=notices.append)
+        receiver = NS(loss_enter_allowed=lambda:allowed[0], loss_enter_notify=notices.append,
+                      loss_input_lock=threading.Lock())
         repeat(receiver, None, window, stop, False)
         thread = receiver.loss_enter_sender['thread']
         # The OCR/main thread does nothing while the sender continues.
         time.sleep(.15)
         assert len(pressed) >= 6, len(pressed)
         assert receiver.loss_enter_sender['thread'] is thread
+        with receiver.loss_input_lock:
+            before_typing=len(pressed)
+            time.sleep(.06)
+            assert len(pressed)==before_typing
         if reason == 'focus': focused[0] = False
         elif reason == 'mode': allowed[0] = False
         elif reason == 'ui': active_ui[0] = False
+        elif reason == 'round': receiver.loss_enter_sender['cancel'].set()
         else: stop.set()
         thread.join(.3)
         assert not thread.is_alive()
         count = len(pressed)
         time.sleep(.03)
         assert len(pressed) == count and notices
-    for reason in ('focus', 'mode', 'ui', 'stop'):
+        assert len(pressed)%2==0
+        for down,up in zip(pressed[::2],pressed[1::2]):
+            assert down[0]==0 and up[0]==2 and up[1]-down[1]>=.016
+        if reason=='round':
+            first=receiver.loss_enter_sender
+            first['cancel'].set()
+            first['thread'].join(.3)
+            receiver.loss_enter_sender=None
+            old_count=first['count']
+            repeat(receiver,None,window,stop,False)
+            second=receiver.loss_enter_sender
+            time.sleep(.12)
+            assert second is not first and second['count']>=3
+            assert first['count']==old_count
+            second['cancel'].set()
+            second['thread'].join(.3)
+            assert not second['thread'].is_alive()
+    for reason in ('focus', 'mode', 'ui', 'stop', 'round'):
         stream(reason)
     print('PASS: fresh OCR at three resolutions, own/opponent choice, hover lobby, '
           'atomic click/release and independent Enter sender with four stop conditions')
