@@ -46,7 +46,7 @@ async def run(base_path, fixed_path, recording=None):
     base, fixed = code_in_exe(base_path), code_in_exe(fixed_path)
     # Startup and virtual-key handling from v17 are exercised separately.
     for name in ('send_word', 'Reader.lobby_visible', 'press',
-                 'App.run.<locals>.loop', 'click_letter_card'):
+                 'App.run.<locals>.loop'):
         assert find(base, name) == find(fixed, name), name
 
     async def scenario(values, answers=(), directions=((31, 17),), stop_after_key=False):
@@ -116,6 +116,7 @@ async def run(base_path, fixed_path, recording=None):
 
     if recording:
         video = cv2.VideoCapture(str(recording))
+        assert video.isOpened(), f'Recording unavailable: {recording}'
         checks = 0
         for index in range(0, min(int(video.get(cv2.CAP_PROP_FRAME_COUNT)), 600), 60):
             video.set(cv2.CAP_PROP_POS_FRAMES, index)

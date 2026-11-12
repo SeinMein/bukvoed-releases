@@ -19,7 +19,7 @@ COOKIE = '!8sIIII64s'
 ENTRY = '!IIIIBc'
 MAGIC = b'MEI\014\013\012\013\016'
 BASE_VERSION = '2026.11.08.14'
-VERSION = '2026.11.12.2'
+VERSION = '2026.11.12.3'
 BASE_SHA256 = 'b953dc26d91f12865521c014ef911f1e6bcc660fab19a8fe794cd99ce8d09929'
 MOVEMENT_COMMIT = '0cdeacde42f240054bed0fa1fc28badf4a69ace9'
 MOVEMENT_SHA256 = '64f26320b85ea5ef6381a8b114b345815c4478ca4d3057cb64c4988b3be8e047'
@@ -68,6 +68,10 @@ def patch_code(code):
     chair_source = Path(__file__).with_name('chair_fix.py')
     chair_code = compile(chair_source.read_text(encoding='utf-8'), 'maintenance/chair_fix.py', 'exec')
     chair_functions = {c.co_name:c for c in chair_code.co_consts if isinstance(c, types.CodeType)}
+    interaction_source = Path(__file__).with_name('interaction_fix.py')
+    interaction_code = compile(interaction_source.read_text(encoding='utf-8'), 'maintenance/interaction_fix.py', 'exec')
+    interactions = {('Reader.'+c.co_name if c.co_name=='letter_choices' else c.co_name):c
+                    for c in interaction_code.co_consts if isinstance(c, types.CodeType)}
     changes = []
 
     def walk(item):
@@ -80,8 +84,11 @@ def patch_code(code):
         if item.co_qualname in chair_functions:
             changes.append(item.co_qualname)
             return chair_functions[item.co_qualname]
+        if item.co_qualname in interactions:
+            changes.append(item.co_qualname)
+            return interactions[item.co_qualname].replace(co_qualname=item.co_qualname)
         constants = tuple(walk(c) if isinstance(c, types.CodeType)
-                          else c.replace('v12', 'v19') if isinstance(c, str) else c
+                          else c.replace('v12', 'v20') if isinstance(c, str) else c
                           for c in item.co_consts)
         if item.co_qualname == 'App.run.<locals>.loop':
             instructions = list(dis.get_instructions(item))
@@ -110,7 +117,7 @@ def patch_code(code):
 
     result = walk(code)
     assert sorted(changes) == sorted([
-        *chair_functions, 'continuous player retries', 'lobby detector',
+        *chair_functions, *interactions, 'continuous player retries', 'lobby detector',
         'movement virtual keys', 'start from lobby']), changes
     return result
 
