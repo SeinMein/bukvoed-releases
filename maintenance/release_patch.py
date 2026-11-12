@@ -1,8 +1,8 @@
 """Reproducibly patch the shipped application without unavailable original sources.
 
 Run with Python 3.13: release_patch.py BASE_EXE OUTPUT_EXE
-Updates lobby detection, the player retry guard and version labels; restores
-the original chair movement and direction detector from pinned Git history.
+Updates lobby detection, the player retry guard and version labels, and installs
+the visual chair controller from chair_fix.py.
 The bootloader and all other bundled archive entries are preserved.
 """
 import dis
@@ -19,7 +19,7 @@ COOKIE = '!8sIIII64s'
 ENTRY = '!IIIIBc'
 MAGIC = b'MEI\014\013\012\013\016'
 BASE_VERSION = '2026.11.08.14'
-VERSION = '2026.11.10.3'
+VERSION = '2026.11.12.1'
 BASE_SHA256 = 'b953dc26d91f12865521c014ef911f1e6bcc660fab19a8fe794cd99ce8d09929'
 MOVEMENT_COMMIT = '0cdeacde42f240054bed0fa1fc28badf4a69ace9'
 MOVEMENT_SHA256 = '64f26320b85ea5ef6381a8b114b345815c4478ca4d3057cb64c4988b3be8e047'
@@ -61,17 +61,13 @@ def patch_code(code):
     source = Path(__file__).with_name('restart_fix.py')
     replacement = compile(source.read_text(encoding='utf-8'), 'maintenance/restart_fix.py', 'exec')
     lobby = next(c for c in replacement.co_consts if isinstance(c, types.CodeType) and c.co_name == 'lobby_visible')
-    restart = next(c for c in replacement.co_consts if isinstance(c, types.CodeType) and c.co_name == 'restart_at_chair')
-    adapter = next(c for c in replacement.co_consts if isinstance(c, types.CodeType) and c.co_name == 'attempt_chair_restart')
     sender = next(c for c in replacement.co_consts if isinstance(c, types.CodeType) and c.co_name == 'press')
     original_sender = next(c for c in code.co_consts if isinstance(c, types.CodeType) and c.co_name == 'press')
     sender = sender.replace(co_consts=tuple(original_sender if isinstance(c, types.CodeType) and c.co_name == 'original'
                                            else c for c in sender.co_consts))
-    previous = movement_code()
-    legacy = next(c for c in previous.co_consts if isinstance(c, types.CodeType) and c.co_name == 'restart_at_chair')
-    grass = next(c for c in previous.co_consts if isinstance(c, types.CodeType) and c.co_name == 'chair_grass_direction')
-    adapter = adapter.replace(co_consts=tuple(legacy if isinstance(c, types.CodeType) and c.co_name == 'legacy'
-                                             else c for c in adapter.co_consts))
+    chair_source = Path(__file__).with_name('chair_fix.py')
+    chair_code = compile(chair_source.read_text(encoding='utf-8'), 'maintenance/chair_fix.py', 'exec')
+    chair_functions = {c.co_name:c for c in chair_code.co_consts if isinstance(c, types.CodeType)}
     changes = []
 
     def walk(item):
@@ -81,17 +77,11 @@ def patch_code(code):
         if item.co_qualname == 'Reader.lobby_visible':
             changes.append('lobby detector')
             return lobby.replace(co_qualname='Reader.lobby_visible')
-        if item.co_qualname == 'restart_at_chair':
-            changes.append('chair restart adapter')
-            return restart
-        if item.co_qualname == 'attempt_chair_restart':
-            changes.append('original chair movement')
-            return adapter
-        if item.co_qualname == 'chair_grass_direction':
-            changes.append('original direction detector')
-            return grass
+        if item.co_qualname in chair_functions:
+            changes.append(item.co_qualname)
+            return chair_functions[item.co_qualname]
         constants = tuple(walk(c) if isinstance(c, types.CodeType)
-                          else c.replace('v12', 'v17') if isinstance(c, str) else c
+                          else c.replace('v12', 'v18') if isinstance(c, str) else c
                           for c in item.co_consts)
         if item.co_qualname == 'App.run.<locals>.loop':
             instructions = list(dis.get_instructions(item))
@@ -119,9 +109,9 @@ def patch_code(code):
         return item.replace(co_consts=constants)
 
     result = walk(code)
-    assert sorted(changes) == ['chair restart adapter', 'continuous player retries',
-                               'lobby detector', 'movement virtual keys', 'original chair movement',
-                               'original direction detector', 'start from lobby'], changes
+    assert sorted(changes) == sorted([
+        *chair_functions, 'continuous player retries', 'lobby detector',
+        'movement virtual keys', 'start from lobby']), changes
     return result
 
 
