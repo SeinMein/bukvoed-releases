@@ -59,25 +59,9 @@ async def run(base_path, fixed_path, frame_dir=None):
     red_close.paste((240, 30, 30), (1221, 12, 1264, 55))
     assert not await after(OCR(('Тренировка', 'Инвентарь')), red_close)
 
-    original_loop = find(base, 'App.run.<locals>.loop')
-    fixed_loop = find(fixed, 'App.run.<locals>.loop')
-    old_guard = [i for i in dis.get_instructions(original_loop)
-                 if i.opname == 'LOAD_CONST' and i.argval == 3 and i.positions.lineno == 1555]
-    new_guard = next(i for i in dis.get_instructions(fixed_loop) if i.offset == old_guard[0].offset)
-    assert new_guard.argval == float('inf')
-    # Exercise the comparison used by the actual worker at and beyond its
-    # former cutoff. Its separate three-direction reset must stay intact.
-    for attempts in (0, 2, 3, 4, 30, 100):
-        assert attempts < new_guard.argval
-    assert any(i.opname == 'LOAD_CONST' and i.argval == 3 and i.positions.lineno == 1566
-               for i in dis.get_instructions(fixed_loop))
-    expected = bytearray(original_loop.co_code)
-    expected[old_guard[0].offset + 1] = new_guard.arg
-    startup = next(i for i in dis.get_instructions(original_loop)
-                   if i.opname == 'POP_JUMP_IF_NONE' and i.positions.lineno == 1544)
-    expected[startup.offset - 1] = expected[startup.offset + 1] = 0
-    assert bytes(expected) == fixed_loop.co_code
-    assert fixed_loop.co_exceptiontable == original_loop.co_exceptiontable
+    from test_startup_input import startup
+    assert await startup(base) == [], 'Base must reproduce fresh-lobby deadlock'
+    assert await startup(fixed) == ['lobby'], 'Worker must check lobby before first own turn'
 
     count, reproduced = 0, 0
     if frame_dir:

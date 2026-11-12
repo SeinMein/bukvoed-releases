@@ -20,7 +20,7 @@ async def lobby_visible(self, image):
     yellow, red, _ = colors(20, 430, 93, 73)
     # Training, Inventory and Profile must all agree. The former 0.24 red
     # threshold rejected the actual Training icon (~0.19 in the recordings).
-    if (yellow > 0.24 and red > 0.14
+    if (yellow > 0.12 and red > 0.10
             and colors(600, 609, 80, 78)[2] > 0.34
             and colors(735, 609, 78, 78)[0] > 0.26):
         training_gray = cv2.cvtColor(frame[430:503, 20:113], cv2.COLOR_RGB2GRAY)

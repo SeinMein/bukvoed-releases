@@ -45,8 +45,7 @@ class Reader:
 async def run(base_path, fixed_path, recording=None):
     base, fixed = code_in_exe(base_path), code_in_exe(fixed_path)
     # Startup and virtual-key handling from v17 are exercised separately.
-    for name in ('send_word', 'Reader.lobby_visible', 'press',
-                 'App.run.<locals>.loop'):
+    for name in ('send_word', 'press'):
         assert find(base, name) == find(fixed, name), name
 
     async def scenario(values, answers=(), directions=((31, 17),), stop_after_key=False):

@@ -5,7 +5,6 @@ Updates lobby detection, the player retry guard and version labels, and installs
 the visual chair controller from chair_fix.py.
 The bootloader and all other bundled archive entries are preserved.
 """
-import dis
 import hashlib
 import marshal
 from pathlib import Path
@@ -19,7 +18,7 @@ COOKIE = '!8sIIII64s'
 ENTRY = '!IIIIBc'
 MAGIC = b'MEI\014\013\012\013\016'
 BASE_VERSION = '2026.11.08.14'
-VERSION = '2026.11.12.3'
+VERSION = '2026.11.12.4'
 BASE_SHA256 = 'b953dc26d91f12865521c014ef911f1e6bcc660fab19a8fe794cd99ce8d09929'
 MOVEMENT_COMMIT = '0cdeacde42f240054bed0fa1fc28badf4a69ace9'
 MOVEMENT_SHA256 = '64f26320b85ea5ef6381a8b114b345815c4478ca4d3057cb64c4988b3be8e047'
@@ -71,7 +70,9 @@ def patch_code(code):
     interaction_source = Path(__file__).with_name('interaction_fix.py')
     interaction_code = compile(interaction_source.read_text(encoding='utf-8'), 'maintenance/interaction_fix.py', 'exec')
     interactions = {('Reader.'+c.co_name if c.co_name=='letter_choices' else c.co_name):c
-                    for c in interaction_code.co_consts if isinstance(c, types.CodeType)}
+                    for c in interaction_code.co_consts if isinstance(c, types.CodeType) and c.co_name!='App'}
+    app_code = next(c for c in interaction_code.co_consts if isinstance(c, types.CodeType) and c.co_name=='App')
+    interactions['App.run'] = next(c for c in app_code.co_consts if isinstance(c, types.CodeType) and c.co_name=='run')
     changes = []
 
     def walk(item):
@@ -88,37 +89,13 @@ def patch_code(code):
             changes.append(item.co_qualname)
             return interactions[item.co_qualname].replace(co_qualname=item.co_qualname)
         constants = tuple(walk(c) if isinstance(c, types.CodeType)
-                          else c.replace('v12', 'v20') if isinstance(c, str) else c
+                          else c.replace('v12', 'v21') if isinstance(c, str) else c
                           for c in item.co_consts)
-        if item.co_qualname == 'App.run.<locals>.loop':
-            instructions = list(dis.get_instructions(item))
-            # Preserve the existing retry delays, three-direction cycle and
-            # Stop/focus guards; remove only the permanent player-mode cutoff.
-            guards = [i for i in instructions if i.opname == 'LOAD_CONST'
-                      and i.argval == 3 and i.positions.lineno == 1555]
-            assert len(guards) == 1, 'Retry guard differs from base release'
-            index = len(constants)
-            assert index < 256 and guards[0].arg < 256
-            bytecode = bytearray(item.co_code)
-            bytecode[guards[0].offset + 1] = index
-            # A fresh Start in the lobby must not wait for a prior own turn.
-            # Zero-distance jump retains the original stack/cache layout.
-            startup = [i for i in instructions if i.opname == 'POP_JUMP_IF_NONE'
-                       and i.positions.lineno == 1544]
-            assert len(startup) == 1
-            offset = startup[0].offset
-            assert bytecode[offset - 2] == dis.opmap['EXTENDED_ARG']
-            bytecode[offset - 1] = bytecode[offset + 1] = 0
-            constants += (float('inf'),)
-            item = item.replace(co_code=bytes(bytecode))
-            changes.append('continuous player retries')
-            changes.append('start from lobby')
         return item.replace(co_consts=constants)
 
     result = walk(code)
     assert sorted(changes) == sorted([
-        *chair_functions, *interactions, 'continuous player retries', 'lobby detector',
-        'movement virtual keys', 'start from lobby']), changes
+        *chair_functions, *interactions, 'lobby detector', 'movement virtual keys']), changes
     return result
 
 
